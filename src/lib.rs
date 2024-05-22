@@ -38,7 +38,14 @@ pub fn process_instruction(
     let mut greeting_array = account.data.try_borrow_mut().unwrap();
     let mut greeting_data: GreetingAccount = from_slice::<GreetingAccount>(&greeting_array[..]).unwrap();
     greeting_data.counter += 1;
-    greeting_array[..].copy_from_slice(&to_vec(&greeting_data).unwrap());
+    let greeting_vec = to_vec(&greeting_data).unwrap();
+    greeting_array[..].copy_from_slice(&greeting_vec);
+    //greeting_array[..].copy_from_slice(&to_vec(&greeting_data).unwrap());
+//    let mut greeting_data = GreetingAccount::try_from_slice(&account.data.borrow())?;
+//    greeting_data.counter += 1;
+//    greeting_data.serialize(&mut &mut account.data.borrow_mut()[..])?;
+
+    msg!("Greeted {} time(s)!", greeting_data.counter);
 
     Ok(())
 }
@@ -48,6 +55,7 @@ mod tests {
     use super::*;
     use solana_program::clock::Epoch;
     use std::mem;
+    use borsh::{from_slice, to_vec};
 
     #[test]
     fn test_greeting_from_slice() {
@@ -70,7 +78,7 @@ mod tests {
         let mut greeting_data: GreetingAccount = from_slice::<GreetingAccount>(&greeting_array[..]).unwrap();
         assert_eq!(greeting_data.counter, 0);
         greeting_data.counter += 1;
-        greeting_array[..].copy_from_slice(&to_vec(&greeting_data).unwrap());
+        greeting_array[..].copy_from_slice(&to_vec(&greeting_data).unwrap()[..]);
         assert_eq!(greeting_data.counter, 1);
     }
 
@@ -93,14 +101,19 @@ mod tests {
         );
         let instruction_data: Vec<u8> = Vec::new();
         let accounts = vec![account];
-        let greeting_array = accounts[0].data.try_borrow().unwrap();
-        let greeting_data: GreetingAccount = from_slice::<GreetingAccount>(&greeting_array[..]).unwrap();
-        assert_eq!(greeting_data.counter, 0);
+        assert_eq!(
+            GreetingAccount::try_from_slice(&accounts[0].data.borrow())
+                .unwrap()
+                .counter,
+            0
+        );
+        process_instruction(&program_id, &accounts, &instruction_data).unwrap();
+        let greeting_data1: GreetingAccount = GreetingAccount::try_from_slice(&accounts[0].data.borrow()).unwrap();
+        assert_eq!(greeting_data1.counter, 1);
 
         process_instruction(&program_id, &accounts, &instruction_data).unwrap();
-        let greeting_array1 = accounts[0].data.try_borrow().unwrap();
-        let greeting_data1: GreetingAccount = from_slice::<GreetingAccount>(&greeting_array1[..]).unwrap();
-        assert_eq!(greeting_data1.counter, 1);
+        let greeting_data2: GreetingAccount = GreetingAccount::try_from_slice(&accounts[0].data.borrow()).unwrap();
+        assert_eq!(greeting_data2.counter, 2);
     }
 
 }
